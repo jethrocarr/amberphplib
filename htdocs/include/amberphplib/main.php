@@ -206,7 +206,7 @@ if ($language_mode == "preload")
 
 	// load all transactions
 	$sql_obj		= New sql_query;
-	$sql_obj->string	= "SELECT label, translation FROM `language` WHERE language='en_us'";
+	$sql_obj->string	= "SELECT label, translation FROM `language` WHERE language='$language'";
 	$sql_obj->execute();
 	$sql_obj->fetch_array();
 
