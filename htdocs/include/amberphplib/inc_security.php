@@ -134,6 +134,7 @@ function security_form_input($expression, $valuename, $numchars, $errormsg)
 	"type" options:
 	* any		Allow any input (note: HTML tags will still be stripped)
 	* date		Reassembles 3 different fields into a single YYYY-MM-DD format
+	* date_string	Accepts YYYY-MM-DD
 	* hourmins	Take 2 fields (hours + minutes), adds them, and returns the number of seconds
 	* email		Standard email address
 	* int		Standard integer
@@ -270,6 +271,11 @@ function security_form_input_predefined ($type, $valuename, $numchar, $errormsg)
 			return $timestamp;
 
 		break;
+
+		case "date_string":
+			$expression = "/^[0-9]*-[0-9]*-[0-9]*$/";
+		break;
+
 
 		case "int":
 			$expression = "/^[0-9]*$/";
