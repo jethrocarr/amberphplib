@@ -1126,8 +1126,8 @@ class table
 		$this->render_table_prepare();
 		
 		// display header row
-		print "<table class=\"table_content\" cellspacing=\"0\" width=\"100%\">";
-		print "<tr>";
+		print "\n<table class=\"table_content\" cellspacing=\"0\" width=\"100%\">\n";
+		print "<tr>\n";
 
 		foreach ($this->columns as $column)
 		{
@@ -1135,35 +1135,35 @@ class table
 			// just display the standard name
 			if ($this->structure[$column]["custom"]["link"])
 			{
-				print "<td class=\"header\"><b><a class=\"header_link\" href=\"". $this->structure[$column]["custom"]["link"] ."\">". $this->render_columns[$column] ."</a></b></td>";
+				print "\t<td class=\"header\"><b><a class=\"header_link\" href=\"". $this->structure[$column]["custom"]["link"] ."\">". $this->render_columns[$column] ."</a></b></td>\n";
 			}
 			else
 			{
-				print "<td class=\"header\"><b>". $this->render_columns[$column] ."</b></td>";
+				print "\t<td class=\"header\"><b>". $this->render_columns[$column] ."</b></td>\n";
 			}
 		}
 		
 		// title for optional total column (displayed when row totals are active)
 		if ($this->total_rows)
-			print "<td class=\"header\"><b>Total:</b></td>";
+			print "\t<td class=\"header\"><b>Total:</b></td>\n";
 	
 		// filler for optional link column
 		if ($this->links)
-			print "<td class=\"header\">&nbsp;</td>";
+			print "\t<td class=\"header\">&nbsp;</td>\n";
 
 
-		print "</tr>";
+		print "</tr>\n";
 
 		// display data
 		for ($i=0; $i < $this->data_num_rows; $i++)
 		{
 			if ($this->data[$i]["options"]["css_class"])
 			{
-				print "<tr class=\"". $this->data[$i]["options"]["css_class"] ."\">";
+				print "<tr class=\"". $this->data[$i]["options"]["css_class"] ."\">\n";
 			}
 			else
 			{
-				print "<tr>";
+				print "<tr>\n";
 			}
 
 			// content for columns
@@ -1172,7 +1172,7 @@ class table
 				$content = $this->data_render[$i][$columns];
 
 				// start cell
-				print "<td valign=\"top\">";
+				print "\t<td valign=\"top\">";
 
 				// hyperlink?
 				if ($this->links_columns[ $columns ])
@@ -1249,14 +1249,14 @@ class table
 					print "</a>";
 				}
 
-				print "</td>";
+				print "</td>\n";
 			}
 
 
 			// optional: row totals column
 			if ($this->total_rows)
 			{
-				print "<td><b>". $this->data_render[$i]["total"] ."</b></td>";
+				print "\t<td><b>". $this->data_render[$i]["total"] ."</b></td>\n";
 			}
 
 			
@@ -1280,7 +1280,7 @@ class table
 
 				if ($links_count)
 				{
-					print "<td align=\"right\" nowrap>";
+					print "\t<td align=\"right\" nowrap>";
 	
 					foreach ($links_available as $link)
 					{
@@ -1330,23 +1330,23 @@ class table
 						}
 					}
 
-					print "</td>";
+					print "</td>\n";
 
 				} // end if valid links exist
 			}
 	
-			print "</tr>";
+			print "</tr>\n";
 		}
 
 
 		// display totals for columns
 		if ($this->total_columns)
 		{
-			print "<tr>";
+			print "<tr>\n";
 
 			foreach ($this->columns as $column)
 			{
-				print "<td class=\"footer\">";
+				print "\t<td class=\"footer\">";
 		
 				if (in_array($column, $this->total_columns))
 				{
@@ -1357,24 +1357,24 @@ class table
 					print "&nbsp;";
 				}
 		
-				print "</td>";
+				print "</td>\n";
 			}
 
 			// optional: totals for rows
 			if ($this->total_rows)
 			{
-				print "<td class=\"footer\"><b>". $this->data_render["total"]["total"] ."</b></td>";
+				print "\t<td class=\"footer\"><b>". $this->data_render["total"]["total"] ."</b></td>\n";
 			}
 
 
 			// optional: filler for link column
 			if ($this->links)
-				print "<td class=\"footer\">&nbsp;</td>";
+				print "\t<td class=\"footer\">&nbsp;</td>\n";
 			
-			print "</tr>";
+			print "</tr>\n";
 		}
 	
-		print "</table>";
+		print "</table>\n";
 		
 		
 	} // end of render_table_html
