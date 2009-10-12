@@ -148,14 +148,13 @@ function format_file_name($filepath)
 /*
 	format_text_display($text)
 
-	Formats a block of text from a database into a form suitable for display as HTML by
-	replacing any \n with <br> statments
+	Formats a block of text from a database into a form suitable for display as HTML.
 
 	Returns the processed text.
 */
 function format_text_display($text)
 {
-	log_debug("misc", "Executing format_text_display($text)");
+	log_debug("misc", "Executing format_text_display(TEXT)");
 	
 	// replace unrenderable html tags of > and <
 	$text = str_replace(">", "&gt;", $text);
@@ -166,6 +165,26 @@ function format_text_display($text)
 
 	return $text;
 }
+
+
+/*
+	format_text_textarea($text)
+
+	Formats a block of text from a database into a form suitable for display inside textarea forms.
+
+	Returns the processed text.
+*/
+function format_text_textarea($text)
+{
+	log_debug("misc", "Executing format_text_textarea(TEXT)");
+	
+	// replace unrenderable html tags of > and <
+	$text = str_replace(">", "&gt;", $text);
+	$text = str_replace("<", "&lt;", $text);
+	
+	return $text;
+}
+
 
 
 /*
@@ -906,5 +925,184 @@ function file_generate_tmpfile()
 }
 
 
+
+/*
+	HTTP/HEADER FUNCTIONS
+*/
+
+
+/*
+	http_header_lookup
+
+	Returns the full HTTP header string for the specified return code
+
+	Fields
+	num		number of the HTTP code to return
+
+	Returns
+	string		HTTP header string
+*/
+
+function http_header_lookup($num)
+{
+	log_debug("inc_misc", "Executing http_header_lookup($num)");
+
+	$return_codes = array (
+		100 => "HTTP/1.1 100 Continue",
+		101 => "HTTP/1.1 101 Switching Protocols",
+		200 => "HTTP/1.1 200 OK",
+		201 => "HTTP/1.1 201 Created",
+		202 => "HTTP/1.1 202 Accepted",
+		203 => "HTTP/1.1 203 Non-Authoritative Information",
+		204 => "HTTP/1.1 204 No Content",
+		205 => "HTTP/1.1 205 Reset Content",
+		206 => "HTTP/1.1 206 Partial Content",
+		300 => "HTTP/1.1 300 Multiple Choices",
+		301 => "HTTP/1.1 301 Moved Permanently",
+		302 => "HTTP/1.1 302 Found",
+		303 => "HTTP/1.1 303 See Other",
+		304 => "HTTP/1.1 304 Not Modified",
+		305 => "HTTP/1.1 305 Use Proxy",
+		307 => "HTTP/1.1 307 Temporary Redirect",
+		400 => "HTTP/1.1 400 Bad Request",
+		401 => "HTTP/1.1 401 Unauthorized",
+		402 => "HTTP/1.1 402 Payment Required",
+		403 => "HTTP/1.1 403 Forbidden",
+		404 => "HTTP/1.1 404 Not Found",
+		405 => "HTTP/1.1 405 Method Not Allowed",
+		406 => "HTTP/1.1 406 Not Acceptable",
+		407 => "HTTP/1.1 407 Proxy Authentication Required",
+		408 => "HTTP/1.1 408 Request Time-out",
+		409 => "HTTP/1.1 409 Conflict",
+		410 => "HTTP/1.1 410 Gone",
+		411 => "HTTP/1.1 411 Length Required",
+		412 => "HTTP/1.1 412 Precondition Failed",
+		413 => "HTTP/1.1 413 Request Entity Too Large",
+		414 => "HTTP/1.1 414 Request-URI Too Large",
+		415 => "HTTP/1.1 415 Unsupported Media Type",
+		416 => "HTTP/1.1 416 Requested range not satisfiable",
+		417 => "HTTP/1.1 417 Expectation Failed",
+		500 => "HTTP/1.1 500 Internal Server Error",
+		501 => "HTTP/1.1 501 Not Implemented",
+		502 => "HTTP/1.1 502 Bad Gateway",
+		503 => "HTTP/1.1 503 Service Unavailable",
+		504 => "HTTP/1.1 504 Gateway Time-out"       
+	);
+
+	return $return_codes[$num];
+}
+
+
+
+
+/*
+	dir_generate_name
+
+	Generates a unique directory based on the base name provided and creates it.
+	
+	Dir permissions are 770, limiting access to webserver user for security reasons.
+
+	Fields
+	basename		Base of the directory name,
+
+	Returns
+	string			Name of the directory
+*/
+function dir_generate_name($basename)
+{
+	log_debug("inc_misc", "Executing dir_generate_name($basename)");
+	
+
+	// calculate a temporary directory name
+	$uniqueid = 0;
+	while ($complete == "")
+	{
+		$dirname = $basename ."_". mktime() ."_$uniqueid";
+
+		if (file_exists($dirname))
+		{
+			// the dirname has already been used, try incrementing
+			$uniqueid++;
+		}
+		else
+		{
+			// found an avaliable ID
+			mkdir($dirname);
+			chmod($dirname, 0770);		// note: what happens on windows?
+			return $dirname;
+		}
+	}
+}
+
+
+/*
+	dir_generate_tmpdir
+
+	Generates a tempory directory and returns the full path - directories do
+	not automatically get deleted, unless the temp dir is subject to an external
+	process such as tmpwatch.
+
+	Returns
+	string		directory path
+*/
+function dir_generate_tmpdir()
+{
+	log_debug("inc_misc", "Executing dir_generate_tmpfile()");
+
+	$path_tmpdir = sql_get_singlevalue("SELECT value FROM config WHERE name='PATH_TMPDIR'");
+
+	return dir_generate_name("$path_tmpdir/temporary_dir");
+}
+
+
+/*
+	dir_list_contents
+
+	Returns an array listing all files (recursively) in the selected directory.
+
+	Values
+	directory	(optional) defaults to current dir
+
+	Returns
+	0		failure
+	array		list of directories
+
+*/
+function dir_list_contents($directory='.')
+{
+	log_debug("inc_misc", "Executing dir_list_contents($directory)");
+
+	 $files = array();
+
+	  if (is_dir($directory))
+	  {
+		$fh = opendir($directory);
+
+		// loop through files
+		while (($file = readdir($fh)) !== false)
+		{
+			if ($file != "." && $file != "..")
+			{
+				$filepath = $directory . '/' . $file;
+
+				array_push($files, $filepath);
+				
+				if ( is_dir($filepath) )
+				{
+					$files = array_merge($files, dir_list_contents($filepath));
+				}
+			}
+		}
+
+		closedir($fh);
+	}
+	else
+	{
+		log_write("error", "inc_misc", "Invalid/non-existant directory supplied");
+		return 0;
+	}
+
+	return $files;
+}
 
 ?>
