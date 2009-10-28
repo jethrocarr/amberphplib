@@ -117,7 +117,7 @@ function user_login($instance, $username, $password)
 
 	if ($schema_version != $GLOBALS["config"]["schema_version"])
 	{
-		log_write("error", "inc_user", "The Amberdms Billing System application has been updated, but the database has not been upgraded to match. Login is disabled until this is resolved.");
+		log_write("error", "inc_user", "The application has been updated, but the database has not been upgraded to match. Login is disabled until this is resolved.");
 		return -5;
 	}
 
