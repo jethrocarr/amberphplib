@@ -703,6 +703,11 @@ class table
 			$structure = NULL;
 			$structure["fieldname"]		= $column;
 			$structure["type"]		= "checkbox";
+
+			if ($this->structure[$column]["custom"]["label"])
+			{
+				$structure["options"]["label"]	= lang_trans($this->structure[$column]["custom"]["label"]);
+			}
 			
 			if (in_array($column, $this->columns))
 				$structure["defaultvalue"] = "on";
