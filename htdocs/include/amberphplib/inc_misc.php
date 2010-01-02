@@ -399,10 +399,19 @@ function format_arraytocommastring($array)
 function time_date_to_timestamp($date)
 {
 	log_debug("misc", "Executing time_date_to_timestamp($date)");
-	
-	$date_a = split("-", $date);
 
-	return mktime(0, 0, 0, $date_a[1], $date_a[2] , $date_a[0]);
+
+	if ($date == "0000-00-00")
+	{
+		// feeding 0000-00-00 to mktime would cause an incorrect timedstamp to be generated
+		return 0;
+	}
+	else
+	{
+		$date_a = split("-", $date);
+
+		return mktime(0, 0, 0, $date_a[1], $date_a[2] , $date_a[0]);
+	}
 }
 
 
