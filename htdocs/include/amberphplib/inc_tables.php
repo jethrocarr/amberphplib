@@ -126,7 +126,7 @@ class table
 		$this->links[$name]["options"]	= $options_array;
 
 
-		if ($options_array["column"])
+		if (isset($options_array["column"]))
 		{
 			log_debug("table", "Configuring $name as a column link");
 
@@ -245,7 +245,7 @@ class table
 				{
 					// note: we only add the filter if a value has been saved to default value, otherwise
 					// we assume the SQL could break.
-					if ($this->filter[$fieldname]["defaultvalue"])
+					if (!empty($this->filter[$fieldname]["defaultvalue"]))
 					{
 						// It is possible to have filters with no SQL query
 						// supplied - these are used when creating complex filters which require code and can not
@@ -255,7 +255,7 @@ class table
 						// will handle it.
 						//
 
-						if ($this->filter[$fieldname]["sql"])
+						if (!empty($this->filter[$fieldname]["sql"]))
 						{
 							$query = str_replace("value", $this->filter[$fieldname]["defaultvalue"], $this->filter[$fieldname]["sql"]);
 							$this->sql_obj->prepare_sql_addwhere($query);
@@ -357,7 +357,7 @@ class table
 
 		*/
 
-		if ($_GET["reset"] == "yes")
+		if (isset($_GET["reset"]))
 		{
 			// reset the option form
 			$_SESSION["form"][$this->tablename] = NULL;
@@ -365,7 +365,7 @@ class table
 		else
 		{
 			
-			if ($_GET["table_display_options"])
+			if (isset($_GET["table_display_options"]))
 			{
 				// flag custom options as active - this is used to adjust the display of
 				// the table options dropdown
@@ -379,11 +379,14 @@ class table
 				// load checkboxes
 				foreach (array_keys($this->structure) as $column)
 				{
-					$column_setting = security_script_input("/^[a-z]*$/", $_GET[$column]);
-					
-					if ($column_setting == "on")
+					if (isset($_GET[$column]))
 					{
-						$this->columns[] = $column;
+						$column_setting = @security_script_input("/^[a-z]*$/", $_GET[$column]);
+					
+						if ($column_setting == "on")
+						{
+							$this->columns[] = $column;
+						}
 					}
 				}
 
@@ -391,9 +394,9 @@ class table
 				$num_cols = count(array_keys($this->structure));
 				for ($i=0; $i < $num_cols; $i++)
 				{
-					if ($_GET["order_$i"])
+					if (!empty($_GET["order_$i"]))
 					{
-						$this->columns_order[] = security_script_input("/^\S*$/", $_GET["order_$i"]);
+						$this->columns_order[] = @security_script_input("/^\S*$/", $_GET["order_$i"]);
 					}
 				}
 
@@ -406,14 +409,14 @@ class table
 					switch ($this->filter[$fieldname]["type"])
 					{
 						case "date":
-							$this->filter[$fieldname]["defaultvalue"] = security_script_input("/^[0-9]*-[0-9]*-[0-9]*$/", $_GET[$fieldname ."_yyyy"] ."-". $_GET[$fieldname ."_mm"] ."-". $_GET[$fieldname ."_dd"]);
+							$this->filter[$fieldname]["defaultvalue"] = @@security_script_input("/^[0-9]*-[0-9]*-[0-9]*$/", $_GET[$fieldname ."_yyyy"] ."-". $_GET[$fieldname ."_mm"] ."-". $_GET[$fieldname ."_dd"]);
 
 							if ($this->filter[$fieldname]["defaultvalue"] == "--")
 								$this->filter[$fieldname]["defaultvalue"] = "";
 						break;
 
 						default:
-							$this->filter[$fieldname]["defaultvalue"] = security_script_input("/^\S*$/", $_GET[$fieldname]);
+							$this->filter[$fieldname]["defaultvalue"] = @@security_script_input("/^\S*$/", $_GET[$fieldname]);
 						break;
 					}
 
@@ -423,7 +426,7 @@ class table
 				}
 
 			}
-			elseif ($_SESSION["form"][$this->tablename]["columns"])
+			elseif (isset($_SESSION["form"][$this->tablename]["columns"]))
 			{
 				log_debug("table", "Loading options form from session data");
 				
@@ -436,7 +439,10 @@ class table
 				// load filterby options
 				foreach (array_keys($this->filter) as $fieldname)
 				{
-					$this->filter[$fieldname]["defaultvalue"] = $_SESSION["form"][$this->tablename]["filters"][$fieldname];
+					if (isset($_SESSION["form"][$this->tablename]["filters"][$fieldname]))
+					{
+						$this->filter[$fieldname]["defaultvalue"] = $_SESSION["form"][$this->tablename]["filters"][$fieldname];
+					}
 				}
 			}
 
@@ -446,7 +452,10 @@ class table
 			
 			foreach (array_keys($this->filter) as $fieldname)
 			{
-				$_SESSION["form"][$this->tablename]["filters"][$fieldname] = $this->filter[$fieldname]["defaultvalue"];
+				if (isset($this->filter[$fieldname]["defaultvalue"]))
+				{
+					$_SESSION["form"][$this->tablename]["filters"][$fieldname] = $this->filter[$fieldname]["defaultvalue"];
+				}
 			}
 		}
 
@@ -465,7 +474,7 @@ class table
 	{
 		foreach ($this->columns as $column)
 		{
-			if ($this->structure[$column]["custom"]["label"])
+			if (isset($this->structure[$column]["custom"]["label"]))
 			{
 				$this->render_columns[$column] = $this->structure[$column]["custom"]["label"];
 			}
@@ -493,6 +502,12 @@ class table
 			See the add_column function for comments about
 			the different possible types.
 		*/
+		if (!isset($this->structure[$column]["type"]))
+		{
+			$this->structure[$column]["type"] = "";
+		}
+
+
 		switch ($this->structure[$column]["type"])
 		{
 			case "date":
@@ -556,7 +571,7 @@ class table
 					$total = "yes";
 				
 				
-				if ($this->data[$row][$column] == 0 && !$total)
+				if (empty($this->data[$row][$column]) && !$total)
 				{
 					// instead of 0.00, make blank, as long as this field is not a total
 					$result = "";
@@ -569,7 +584,7 @@ class table
 
 			case "hourmins":
 				// value is a number of seconds, we need to convert into an H:MM format.
-				$result = time_format_hourmins($this->data[$row][$column]);
+				$result = @time_format_hourmins($this->data[$row][$column]);
 			break;
 
 
@@ -593,7 +608,14 @@ class table
 
 			case "standard":
 			default:
-				$result = $this->data[$row][$column];
+				if (isset($this->data[$row][$column]))
+				{
+					$result = $this->data[$row][$column];
+				}
+				else
+				{
+					$result = "";
+				}
 			break;
 			
 		} // end of switch
@@ -617,7 +639,7 @@ class table
 
 		// if the user has not configured any default options, display the dropdown
 		// link bar instead of the main options table.
-		if (!$_SESSION["form"][$this->tablename]["custom_options_active"])
+		if (!isset($_SESSION["form"][$this->tablename]["custom_options_active"]))
 		{
 			if ($_SESSION["user"]["shrink_tableoptions"] == "on")
 			{
@@ -811,8 +833,10 @@ class table
 					$structure["type"]		= "dropdown";
 					$structure["options"]["width"]	= 150;
 					
-					if ($this->columns_order[$i])
+					if (isset($this->columns_order[$i]))
+					{
 						$structure["defaultvalue"] = $this->columns_order[$i];
+					}
 
 					$structure["values"] = $this->columns_order_options;
 
@@ -928,7 +952,7 @@ class table
 		print "</div>";
 
 		// auto-hide options at startup
-		if (!$_SESSION["form"][$this->tablename]["custom_options_active"])
+		if (!isset($_SESSION["form"][$this->tablename]["custom_options_active"]))
 		{
 			if ($_SESSION["user"]["shrink_tableoptions"] == "on")
 			{
@@ -987,7 +1011,10 @@ class table
 						foreach ($this->total_rows as $total_col)
 						{
 							// add to the total
-							$this->data[$i]["total"] += $this->data[$i][$total_col];
+							if (isset($this->data[$i][$total_col]))
+							{
+								$this->data[$i]["total"] += $this->data[$i][$total_col];
+							}
 						}
 					break;
 
@@ -1084,7 +1111,10 @@ class table
 					
 					for ($i=0; $i < $this->data_num_rows; $i++)
 					{
-						$this->data["total"][$column] += $this->data[$i][$column];
+						if (isset($this->data[$i][$column]))
+						{
+							$this->data["total"][$column] += $this->data[$i][$column];
+						}
 					}
 
 					$this->data_render["total"][$column] = $this->render_field($column, "total");
@@ -1138,7 +1168,7 @@ class table
 		{
 			// add a custom link if one has been specified, otherwise
 			// just display the standard name
-			if ($this->structure[$column]["custom"]["link"])
+			if (isset($this->structure[$column]["custom"]["link"]))
 			{
 				print "\t<td class=\"header\"><b><a class=\"header_link\" href=\"". $this->structure[$column]["custom"]["link"] ."\">". $this->render_columns[$column] ."</a></b></td>\n";
 			}
@@ -1162,7 +1192,7 @@ class table
 		// display data
 		for ($i=0; $i < $this->data_num_rows; $i++)
 		{
-			if ($this->data[$i]["options"]["css_class"])
+			if (isset($this->data[$i]["options"]["css_class"]))
 			{
 				print "<tr class=\"". $this->data[$i]["options"]["css_class"] ."\">\n";
 			}
@@ -1180,7 +1210,7 @@ class table
 				print "\t<td valign=\"top\">";
 
 				// hyperlink?
-				if ($this->links_columns[ $columns ])
+				if (isset($this->links_columns[ $columns ]))
 				{
 					$link		= $this->links_columns[ $columns ];
 					$linkname	= language_translate_string($this->language, $link);
@@ -1190,7 +1220,7 @@ class table
 					// 1. (default) Link to index.php
 					// 2. Set the ["options]["full_link"] value to yes to force a full link
 
-					if ($this->links[$link]["options"]["full_link"] == "yes")
+					if (isset($this->links[$link]["options"]["full_link"]) && $this->links[$link]["options"]["full_link"] == "yes")
 					{
 						print "<a href=\"". $this->links[$link]["page"] ."?libfiller=n";
 					}
@@ -1249,7 +1279,7 @@ class table
 
 
 				// end hyperlink
-				if ($this->links["columns"][ $columns ])
+				if (isset($this->links["columns"][ $columns ]))
 				{
 					print "</a>";
 				}
@@ -1259,14 +1289,14 @@ class table
 
 
 			// optional: row totals column
-			if ($this->total_rows)
+			if (isset($this->total_rows))
 			{
 				print "\t<td><b>". $this->data_render[$i]["total"] ."</b></td>\n";
 			}
 
 			
 			// optional: links column
-			if ($this->links)
+			if (isset($this->links))
 			{
 				// filter out column links from the links page
 				$links			= array_keys($this->links);
@@ -1276,7 +1306,7 @@ class table
 
 				foreach ($links as $link)
 				{
-					if (!$this->links[$link]["options"]["column"])
+					if (!isset($this->links[$link]["options"]["column"]))
 					{
 						$links_count++;
 						$links_available[] = $link;
@@ -1298,7 +1328,7 @@ class table
 						// 1. (default) Link to index.php
 						// 2. Set the ["options]["full_link"] value to yes to force a full link
 
-						if ($this->links[$link]["options"]["full_link"] == "yes")
+						if (isset($this->links[$link]["options"]["full_link"]) && $this->links[$link]["options"]["full_link"] == "yes")
 						{
 							print "<a class=\"button_small\" href=\"". $this->links[$link]["page"] ."?libfiller=n";
 						}
@@ -1315,7 +1345,7 @@ class table
 								1. The value has been passed.
 								2. The name of a column to take the value from has been passed
 							*/
-							if ($this->links[$link]["options"][$getfield]["value"])
+							if (isset($this->links[$link]["options"][$getfield]["value"]))
 							{
 								print "&$getfield=". $this->links[$link]["options"][$getfield]["value"];
 							}
@@ -1345,7 +1375,7 @@ class table
 
 
 		// display totals for columns
-		if ($this->total_columns)
+		if (isset($this->total_columns))
 		{
 			print "<tr>\n";
 

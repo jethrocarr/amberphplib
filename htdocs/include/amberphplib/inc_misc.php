@@ -408,7 +408,7 @@ function time_date_to_timestamp($date)
 	}
 	else
 	{
-		$date_a = split("-", $date);
+		$date_a = explode("-", $date);
 
 		return mktime(0, 0, 0, $date_a[1], $date_a[2] , $date_a[0]);
 	}
@@ -541,7 +541,7 @@ function time_calculate_daysofweek($date_selected_start)
 	$days = array();
 
 	// get the start day, month + year
-	$dates = split("-", $date_selected_start);
+	$dates = explode("-", $date_selected_start);
 	
 	// get the value for all the days
 	for ($i=0; $i < 7; $i++)
@@ -759,7 +759,7 @@ function log_error_render()
 */
 function log_notification_render()
 {
-        if ($_SESSION["notification"]["message"] && !$_SESSION["error"]["message"])
+        if (isset($_SESSION["notification"]["message"]) && !isset($_SESSION["error"]["message"]))
         {
 		print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">";
                 print "<tr><td bgcolor=\"#c7e8ed\" style=\"border: 1px dashed #374893; padding: 3px;\">";
