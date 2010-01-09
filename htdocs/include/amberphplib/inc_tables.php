@@ -735,7 +735,7 @@ class table
 			$structure["fieldname"]		= $column;
 			$structure["type"]		= "checkbox";
 
-			if ($this->structure[$column]["custom"]["label"])
+			if (isset($this->structure[$column]["custom"]["label"]))
 			{
 				$structure["options"]["label"]	= lang_trans($this->structure[$column]["custom"]["label"]);
 			}
@@ -1405,14 +1405,14 @@ class table
 			}
 
 			// optional: totals for rows
-			if ($this->total_rows)
+			if (isset($this->total_rows))
 			{
-				print "\t<td class=\"footer\"><b>". $this->data_render["total"]["total"] ."</b></td>\n";
+				print "\t<td class=\"footer\"><b>". @$this->data_render["total"]["total"] ."</b></td>\n";
 			}
 
 
 			// optional: filler for link column
-			if ($this->links)
+			if (isset($this->links))
 				print "\t<td class=\"footer\">&nbsp;</td>\n";
 			
 			print "</tr>\n";
