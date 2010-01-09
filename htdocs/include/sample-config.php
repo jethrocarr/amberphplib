@@ -5,8 +5,6 @@
 	This file should be read-only by the httpd user. All other users should be denied.
 */
 
-$GLOBALS["config"];
-
 
 
 /*
