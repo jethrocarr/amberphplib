@@ -446,7 +446,7 @@ function time_format_hourmins($seconds)
 	Provides a date formated in the user's perferred way. If no date is provided, will return the current date.
 
 	Values
-	date		Format YYYY-MM-DD (optional)
+	date		Format YYYY-MM-DD OR unix timestamp (optional)
 
 	Returns
 	string		Date in human-readable format.
@@ -457,8 +457,16 @@ function time_format_humandate($date = NULL)
 
 	if ($date)
 	{
-		// convert date to timestamp so we can work with it
-		$timestamp = time_date_to_timestamp($date);
+		if (is_int($date))
+		{
+			// already a timestamp, yay!
+			$timestamp = $date;
+		}
+		else
+		{
+			// convert date to timestamp so we can work with it
+			$timestamp = time_date_to_timestamp($date);
+		}
 	}
 	else
 	{
@@ -718,7 +726,7 @@ function time_calculate_monthdate_last($date = NULL)
 
 function helplink($id)
 {
-	return "<a href=\"help/viewer.php?id=$id\" target=\"new\" title=\"Click here for a popup help box\"><img src=\"images/icons/help.gif\" alt=\"?\" border=\"0\"></a>";
+	return "<a href=\"javascript:url_new_window_minimal('help/viewer.php?id=$id');\" title=\"Click here for a popup help box\"><img src=\"images/icons/help.gif\" alt=\"?\" border=\"0\"></a>";
 }
 
 

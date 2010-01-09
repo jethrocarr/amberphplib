@@ -415,6 +415,15 @@ class table
 								$this->filter[$fieldname]["defaultvalue"] = "";
 						break;
 
+						case "timestamp":
+							$this->filter[$fieldname]["defaultvalue"] = security_script_input("/^[0-9]*$/", $_GET[$fieldname]);
+
+							if ($this->filter[$fieldname]["defaultvalue"] == "--")
+								$this->filter[$fieldname]["defaultvalue"] = "";
+						break;
+
+
+
 						default:
 							$this->filter[$fieldname]["defaultvalue"] = @@security_script_input("/^\S*$/", $_GET[$fieldname]);
 						break;
@@ -1709,20 +1718,27 @@ class table
 
 			$structure["option_name"] = language_translate_string($this->language, $filtername);
 
-			if ($this->filter[$filtername]["type"] == "date")
+			switch ($this->filter[$filtername]["type"])
 			{
-				$structure["option_value"] = time_format_humandate($this->filter[$filtername]["defaultvalue"]);
-			}
-			else
-			{
-				if ($this->filter[$filtername]["defaultvalue"])
-				{
-					$structure["option_value"] = $this->filter[$filtername]["defaultvalue"];
-				}
-				else
-				{
-					$structure["option_value"] = "---";
-				}
+				case "date":
+					$structure["option_value"] = time_format_humandate($this->filter[$filtername]["defaultvalue"]);
+				break;
+
+				case "timestamp":
+					$structure["option_value"] = time_format_humandate($this->filter[$filtername]["defaultvalue"]);
+				break;
+
+				default:
+					// for all other types of filters, just display raw
+					if ($this->filter[$filtername]["defaultvalue"])
+					{
+						$structure["option_value"] = $this->filter[$filtername]["defaultvalue"];
+					}
+					else
+					{
+						$structure["option_value"] = "---";
+					}
+				break;
 			}
 
 
