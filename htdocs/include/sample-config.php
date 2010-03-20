@@ -1,6 +1,6 @@
 <?php
 /*
-	Sample Configuration File
+	Sample Configuration File, this should be installed as config-settings.php
 
 	This file should be read-only by the httpd user. All other users should be denied.
 */
@@ -16,34 +16,10 @@ $config["db_user"] = "root";				// MySQL user
 $config["db_pass"] = "";				// MySQL password (if any)
 
 
-
-
-
 /*
-	Fixed options
-
-	Do not touch anything below this line
+	Force debugging on for all users + scripts
+	(note: debugging can be enabled on a per-user basis by an admin via the web interface)
 */
-
-// Initate session variables
-if ($_SERVER['SERVER_NAME'])
-{
-	// proper session variables
-	session_start();
-}
-else
-{
-	// trick to make logging and error system work correctly for scripts.
-	$GLOBALS["_SESSION"]	= array();
-	$_SESSION["mode"]	= "cli";
-}
-
-// Connect to the MySQL database
-include("database.php");
-
-
-// force debugging on for all users + scripts
-// (note: debugging can be enabled on a per-user basis by an admin via the web interface)
 // $_SESSION["user"]["debug"] = "on";
 
 
