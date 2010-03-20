@@ -7,14 +7,6 @@
 
 
 
-/*
-	Connect to the ER2 database
-*/
-
-// define the schema version required
-$GLOBALS["config"]["schema_version"] = "20090414";
-
-
 // login to the database
 $GLOBALS["config"]["db_app"] = mysql_connect($config["db_host"], $config["db_user"], $config["db_pass"]);
 if (!$GLOBALS["config"]["db_app"])
