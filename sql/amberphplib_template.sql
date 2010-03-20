@@ -279,3 +279,12 @@ CREATE TABLE IF NOT EXISTS `users_sessions` (
 -- Dumping data for table `users_sessions`
 --
 
+
+
+--
+-- Additional Changes
+--
+
+INSERT INTO `config` (`name`, `value`) VALUES ('AUTH_METHOD', 'sql');
+
+
