@@ -38,7 +38,7 @@ function log_debug($category, $content)
 
 function log_write($type, $category, $content)
 {
-	if (isset($_SESSION["user"]["debug"]))
+	if (!empty($_SESSION["user"]["debug"]))
 	{
 		// write log record
 		$log_record = array();
@@ -107,6 +107,7 @@ require("inc_language.php");
 
 // DB SQL processing and execution
 require("inc_sql.php");
+require("inc_ldap.php");
 
 // User + Security Functions
 require("inc_user.php");
