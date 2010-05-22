@@ -101,6 +101,36 @@ function config_generate_uniqueid($config_name, $check_sql)
 
 
 
+/*
+	derive_installation_url
+
+	Returns the URL of the root of the Amberphplib-based application, typically needed
+	for features such as RSS feeds.
+
+	Returns
+	string		Application root URL path
+*/
+
+function derive_installation_url()
+{
+	if($_SERVER['HTTPS'])
+	{
+		$protocol = "https://";
+	}
+	else
+	{
+		$protocol = "http://";
+	} 
+	
+	$server_name	= $_SERVER['SERVER_NAME'];
+	$script_dirname	= dirname($_SERVER['SCRIPT_NAME']);
+
+	return $protocol.$server_name.$script_dirname."/"; 
+
+}
+
+
+
 
 /* FORMATTING/DISPLAY FUNCTIONS */
 
