@@ -79,6 +79,7 @@ class table
 				timestamp_date	- UNIX style timestamp field (converts to date only)
 				money		- displays a financial value correctly
 				price		- legacy use - just calls money
+				precentage	- does formatting for display percentages
 				hourmins	- input is a number of seconds, display as H:MM
 				bool_tick	- interperate a bool as an image (1 == tick, 0 == cross)
 				
@@ -746,6 +747,17 @@ class table
 
 			case "text":
 				$result = format_text_display($this->data[$row][$column]);
+			break;
+
+			case "percentage":
+				if (!empty($this->data[$row][$column]))
+				{
+					$result = $this->data[$row][$column] ."%";
+				}
+				else
+				{
+					$result = "";
+				}
 			break;
 
 			case "standard":
