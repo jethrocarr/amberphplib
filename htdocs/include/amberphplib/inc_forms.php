@@ -1253,39 +1253,54 @@ function form_helper_prepare_valuesfromdb($sqlquery)
 {
 	log_debug("form", "Executing form_helper_prepare_valuesfromdb($sqlquery)");
 	
-	$sql_obj		= New sql_query;
-	$sql_obj->string	= $sqlquery;
-	
-	$sql_obj->execute();
-	
-	if ($sql_obj->num_rows())
+
+	// fetch from cache (if it exists)
+	if (isset($GLOBALS["cache"]["form_sql"][$sqlquery]))
 	{
-		$sql_obj->fetch_array();
-		foreach ($sql_obj->data as $data)
+		log_write("debug", "form", "Fetching form DB results from cache");
+
+		return $GLOBALS["cache"]["form_sql"][$sqlquery];
+	}
+	else
+	{
+		// fetch data from SQL DB
+		$sql_obj		= New sql_query;
+		$sql_obj->string	= $sqlquery;
+		
+		$sql_obj->execute();
+		
+		if ($sql_obj->num_rows())
 		{
-
-			// merge multiple labels into a single label
-			$label = $data["label"];
-
-			for ($i=0; $i < count(array_keys($data)); $i++)
+			$sql_obj->fetch_array();
+			foreach ($sql_obj->data as $data)
 			{
-				if (!empty($data["label$i"]))
+
+				// merge multiple labels into a single label
+				$label = $data["label"];
+
+				for ($i=0; $i < count(array_keys($data)); $i++)
 				{
-					$label .= " -- ". $data["label$i"];
+					if (!empty($data["label$i"]))
+					{
+						$label .= " -- ". $data["label$i"];
+					}
+				}
+				
+
+				// only add an option if there is an id and label for it
+				if ($data["id"] && $label)
+				{
+					$structure["values"][]				= $data["id"];
+					$structure["translations"][ $data["id"] ]	= $label;
 				}
 			}
-			
 
-			// only add an option if there is an id and label for it
-			if ($data["id"] && $label)
-			{
-				$structure["values"][]				= $data["id"];
-				$structure["translations"][ $data["id"] ]	= $label;
-			}
+			// save structure to cache
+			$GLOBALS["cache"]["form_sql"][$sqlquery] = $structure;
+
+			// return the structure
+			return $structure;
 		}
-
-		// return the structure
-		return $structure;
 	}
 
 	return 0;
