@@ -403,13 +403,24 @@ class user_auth
 					$obj_ldap->srvcfg["host"]		= $GLOBALS["config"]["ldap_host"];
 					$obj_ldap->srvcfg["port"]		= $GLOBALS["config"]["ldap_port"];
 					$obj_ldap->srvcfg["base_dn"]		= $GLOBALS["config"]["ldap_dn"];
-					$obj_ldap->srvcfg["user"]		= $GLOBALS["config"]["ldap_manager_user"];
-					$obj_ldap->srvcfg["password"]		= $GLOBALS["config"]["ldap_manager_pwd"];
+					// use the ldap_manager_user if its set, else attempt a bind with the supplied credentials
+					if(isset($GLOBALS["config"]["ldap_manager_user"])) {
+						$obj_ldap->srvcfg["user"]		= $GLOBALS["config"]["ldap_manager_user"];
+						$obj_ldap->srvcfg["password"]		= $GLOBALS["config"]["ldap_manager_pwd"];
+					} else {
+						$obj_ldap->srvcfg["user"] = 'uid=' . $username . ',ou=People,' . $GLOBALS["config"]["ldap_dn"];
+						$obj_ldap->srvcfg["password"] = $password;
+					}
 				}
 
 				// connect to LDAP server
-				if (!$obj_ldap->connect())
+				if ( ( $conn = $obj_ldap->connect() ) <= 0)
 				{
+					if($conn == -1 && !isset($GLOBALS["config"]["ldap_manager_user"]) ) {
+                                                log_debug("user_auth", "Authentication failed due to incorrect password/username combination");
+						return -1;
+					}
+
 					log_write("error", "user_auth", "An error occurred in the authentication backend, please contact your system administrator");
 					return -1;
 				}
@@ -419,6 +430,11 @@ class user_auth
 
 				// run query against users
 				$obj_ldap->search("uid=$username", array("uidnumber", "userpassword"));
+
+				if(!isset($GLOBALS["config"]["ldap_manager_user"]) && isset($obj_ldap->data[0]["uidnumber"][0])) {
+					//authentication has been done by the user supplied credentials and hasn't failed, so we should have a user id here now
+					return $obj_ldap->data[0]["uidnumber"][0];
+				}
 
 				if ($obj_ldap->data_num_rows)
 				{
