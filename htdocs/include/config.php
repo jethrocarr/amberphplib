@@ -65,6 +65,18 @@ else
 }
 
 
+/*
+	Silence warnings to avoid unexpected errors appearing on newer PHP versions
+	than what the developers tested with, unless running in dev mode (in which
+	case we want to see all the configured errors).
+*/
+if (empty($_SESSION["user"]["debug"]))
+{
+	ini_set("display_errors", 0);
+}
+
+
+/
 
 /*
 	Connect to Databases
