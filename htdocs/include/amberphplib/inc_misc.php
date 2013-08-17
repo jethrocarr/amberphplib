@@ -1744,4 +1744,39 @@ function sort_natural_ipaddress($a, $b)
 
 
 
+/*
+	DEBUGGING/PROGRAMMER ASSIST FUNCTIONS
+
+	The following functions are intended for developers working with the Amberphplib codebase
+	or wanting to run debug proceedures.
+*/
+
+
+/*
+	break_array
+
+	Displays the provided array and then terminates the application with die() if set.
+
+	Fields
+	array
+	die		1 == kill, 0 == continue
+
+*/
+
+function break_array($array, $die = 0)
+{
+	print "<pre>";
+	print_r($array);
+	print "</pre>";
+
+	if ($die)
+	{
+		die("Forced execute of break_array()");
+	}
+
+} // end of break_array
+
+
+
+
 ?>

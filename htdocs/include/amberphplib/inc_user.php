@@ -50,6 +50,40 @@ class user_auth
 	}
 
 
+	/*
+	   * Checks for alternative session database store (shared)
+	   */
+	function getSessionDatabase($sql_obj) {
+
+		global $config, $session_store_ok;
+
+		// default to storing user session data in this applications database
+		if(!isset($config['session_store'])) {
+			return $sql_obj;	
+		}
+
+		// to stop many errors on failures return
+		if(isset($session_store_ok) && !$session_store_ok) {
+			return New sql_query;
+		}
+
+		if(!$sql_obj->session_init("mysql", $config['session_store']['db_host'], $config['session_store']['db_name'], $config['session_store']['db_user'], $config['session_store']['db_pass'])) {
+
+			if(!isset($session_store_ok) || $session_store_ok) {
+				$session_store_ok = false;
+				log_write("error",'process', 'Unable to connect to session store database. Reverting to local store session storage method. Please check configuration.');
+				log_debug("getSessionDatabase", "falling back to local session store as remote store could not be contacted");
+			}
+
+			$session_sql_obj = New sql_query;
+			return $session_sql_obj;
+		}
+
+		return $sql_obj;
+
+	}
+
+
 
 	/*
 		check_online()
@@ -161,6 +195,7 @@ class user_auth
 					{
 						// update time field
 						$sql_obj		= New sql_query;
+						$sql_obj		= $this->getSessionDatabase($sql_obj);
 						$sql_obj->string	= "UPDATE `users_sessions` SET time='$time' WHERE authkey='". $_SESSION["user"]["authkey"] ."' LIMIT 1";
 						$sql_obj->execute();
 					}
@@ -854,6 +889,7 @@ class user_auth
 		$time_expired = $time - 43200;
 
 		$sql_obj		= New sql_query;
+		$sql_obj		= $this->getSessionDatabase($sql_obj);
 		$sql_obj->string	= "DELETE FROM `users_sessions` WHERE time < '$time_expired'";
 		$sql_obj->execute();
 
@@ -864,6 +900,7 @@ class user_auth
 			log_write("debug", "inc_users", "User account does not permit concurrent logins, removing all old sessions");
 
 			$sql_obj		= New sql_query;
+			$sql_obj		= $this->getSessionDatabase($sql_obj);
 			$sql_obj->string	= "DELETE FROM `users_sessions` WHERE userid='". $userid ."'";
 			$sql_obj->execute();
 		}
@@ -930,6 +967,7 @@ class user_auth
 		{
 			// remove session entry from DB
 			$sql_obj		= New sql_query;
+			$sql_obj		= $this->getSessionDatabase($sql_obj);
 			$sql_obj->string	= "DELETE FROM `users_sessions` WHERE authkey='" . $_SESSION["user"]["authkey"] . "' LIMIT 1";
 			$sql_obj->execute();
 		}
