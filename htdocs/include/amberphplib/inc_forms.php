@@ -178,7 +178,72 @@ class form_input
 	
 		return 1;
 	}
+
+
+	/*
+		load_data_object
+		
+		Imports data from the provided associative array, mapping $array[ fieldname ] to the names of
+		the form fields.
+
+		Fields
+		associative_array
+
+		Returns
+		0	Failure
+		1	Success
+	*/
+	function load_data_object($array)
+	{
+		log_debug("form", "Executing load_data_object()");
 	
+		
+		foreach (array_keys($this->structure) as $fieldname)
+		{
+			/*
+				We now import the data returned by the field for any editable fields
+				and also for any text/message/hidden fields which have recieved data
+				from the form.
+
+				If the field is a text/submit/message/hidden field with no data returned, we
+				just ignore it.
+
+				We always ignore submit buttons.
+			*/
+
+			switch ($this->structure[$fieldname]["type"])
+			{
+				case "submit":
+					// do nothing for submit buttons
+				break;
+
+				case "message":
+				case "text":
+				case "hidden":
+
+					// only set the field if a value has been provided - ie: don't set to blank for any reason
+					if (isset($array["$fieldname"]) && ($array["$fieldname"] != ''))
+					{
+						$this->structure[$fieldname]["defaultvalue"] = stripslashes($array[$fieldname]);
+					}
+				
+				break;
+
+				default:
+					// set the default value
+					if (isset($array["$fieldname"]))
+					{
+						$this->structure[$fieldname]["defaultvalue"] = stripslashes($array[$fieldname]);
+					}
+				break;
+			}
+		}
+
+		return 1;
+
+	} // end of load_data_object
+	
+
 	/*
 		load_data_session()
 
@@ -522,6 +587,7 @@ class form_input
 						["search_filter"]		Enable/disable the optional text box to allow search/ filtering of a dropdown
  						["help"]			In-field help message for input and textarea types. Is ignored if defaultvalue is set.
  						["disabled"]			Disables the field if set to yes
+						["autofill"]			Set to a value to fill the input field with upon being selected the first time.
 						["autocomplete"]		Autocomplete option for input fields, it will display a dropdown that filters
 											as the user types, using the Jquery Autocomplete UI functions. Options are
 											currenly "sql" to use a SQL query set in ["options"]["autocomplete_sql"] and 
@@ -556,22 +622,37 @@ class form_input
 
 				// display
 				print "<input id=\"$fieldname\" name=\"$fieldname\" ";
-				
+
+				$css_field_class = array();
+
 				if (isset($this->structure[$fieldname]["defaultvalue"]))
 				{
 					print "value=\"". htmlentities($this->structure[$fieldname]["defaultvalue"], ENT_QUOTES, "UTF-8") ."\" ";
 				}
  				elseif (isset($this->structure[$fieldname]["options"]["help"]))
  				{
- 					print "class=\"helpmessage\" ";
  					print "value=\"". $this->structure[$fieldname]["options"]["help"] ."\" ";
  					$helpmessagestatus = "true";
+					$css_field_class[]  = "helpmessage";
  				}
-			
+
 				if (isset($this->structure[$fieldname]["options"]["css_field_class"]))	
 				{
-					print "class=\"". $this->structure[$fieldname]["options"]["css_field_class"] ."\" ";
+					$css_field_class[] = $this->structure[$fieldname]["options"]["css_field_class"];
 				}			
+ 				
+				if (!empty($css_field_class))
+				{
+					print "class=\"";
+
+					foreach ($css_field_class as $css)
+					{
+						print $css ." ";
+					}
+
+					print "\" ";
+				}
+
 
 				if (isset($this->structure[$fieldname]["options"]["max_length"]))
 					print "maxlength=\"". $this->structure[$fieldname]["options"]["max_length"] ."\" ";
@@ -584,10 +665,15 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 
 				print "<input type=\"hidden\" name=\"".$fieldname."_helpmessagestatus\" value=\"".$helpmessagestatus."\">";
+				
+				if (isset($this->structure[$fieldname]["options"]["autofill"]))
+				{
+					print "<input type=\"hidden\" name=\"".$fieldname."_autofill\" value=\"". $this->structure[$fieldname]["options"]["autofill"] ."\">";
+				}
 			break;
 
 
@@ -617,28 +703,42 @@ class form_input
 		
 				// display
 				print "<input name=\"$fieldname\" ";
+
+				$css_field_class = array();
+
 				if (isset($this->structure[$fieldname]["defaultvalue"]))
-				{	
-					print "value=\"". format_money($this->structure[$fieldname]["defaultvalue"], 1) ."\" ";
+				{
+					print "value=\"". htmlentities($this->structure[$fieldname]["defaultvalue"], ENT_QUOTES, "UTF-8") ."\" ";
 				}
  				elseif (isset($this->structure[$fieldname]["options"]["help"]))
  				{
- 					print "class=\"helpmessage\" ";
  					print "value=\"". $this->structure[$fieldname]["options"]["help"] ."\" ";
  					$helpmessagestatus = "true";
+					$css_field_class[]  = "helpmessage";
  				}
+
+				if (isset($this->structure[$fieldname]["options"]["css_field_class"]))	
+				{
+					$css_field_class[] = $this->structure[$fieldname]["options"]["css_field_class"];
+				}			
+ 				
+				if (!empty($css_field_class))
+				{
+					print "class=\"";
+
+					foreach ($css_field_class as $css)
+					{
+						print $css ." ";
+					}
+
+					print "\" ";
+				}
  
 				if (isset($this->structure[$fieldname]["options"]["max_length"]))
 					print "maxlength=\"". $this->structure[$fieldname]["options"]["max_length"] ."\" ";
 					
 				if (isset($this->structure[$fieldname]["options"]["disabled"]) && ($this->structure[$fieldname]["options"]["disabled"] == "yes"))
 					print "disabled=\"disabled\" ";
-					
-				if (isset($this->structure[$fieldname]["options"]["css_field_class"]))	
-				{
-					print "class=\"". $this->structure[$fieldname]["options"]["css_field_class"] ."\" ";
-				}			
-					
 				
 				print "style=\"width: ". $this->structure[$fieldname]["options"]["width"] ."px;\">";
 
@@ -653,7 +753,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 				
 				print "<input type=\"hidden\" name=\"".$fieldname."_helpmessagestatus\" value=\"".$helpmessagestatus."\">";
@@ -694,7 +794,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 			break;
 			
@@ -766,7 +866,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 			break;
 
@@ -837,7 +937,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 
 			break;
@@ -870,7 +970,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 
 			break;
@@ -900,7 +1000,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 
 			break;
@@ -965,7 +1065,7 @@ class form_input
 
 						foreach (array_keys($this->actions[$fieldname]) as $target_field)
 						{
-							if ($this->actions[$fieldname][ $target_field ][ $value ])
+							if (isset($this->actions[$fieldname][ $target_field ][ $value ]))
 							{
 								$action = $this->actions[$fieldname][ $target_field ][ $value ];
 							}
@@ -998,8 +1098,11 @@ class form_input
 					}			
 						
 					
-					if ($this->structure[$fieldname]["options"]["disabled"] == "yes")
-						print "disabled=\"disabled\" ";
+					if (isset($this->structure[$fieldname]["options"]["disabled"]))
+					{
+						if ($this->structure[$fieldname]["options"]["disabled"] == "yes")
+							print "disabled=\"disabled\" ";
+					}
 					
 					print "type=\"radio\" style=\"border: 0px\" name=\"$fieldname\" value=\"$value\" id=\"". $fieldname ."_". $value ."\">";
 					print "<label for=\"". $fieldname ."_". $value ."\">". $translations[$value] ."</label><br>";
@@ -1008,7 +1111,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 
 			break;
@@ -1039,7 +1142,7 @@ class form_input
 
 					foreach (array_keys($this->actions[$fieldname]) as $target_field)
 					{
-						if ($this->actions[$fieldname][ $target_field ]["1"])
+						if (isset($this->actions[$fieldname][ $target_field ]["1"]))
 						{
 							$action = $this->actions[$fieldname][ $target_field ]["1"];
 						}
@@ -1060,16 +1163,20 @@ class form_input
 				}
 				
 				if (isset($this->structure[$fieldname]["options"]["disabled"]) && ($this->structure[$fieldname]["options"]["disabled"] == "yes"))
+				{
 					print "disabled=\"disabled\" ";
+				}
 					
 				if (isset($this->structure[$fieldname]["options"]["css_field_class"]))	
 				{
 					print "class=\"". $this->structure[$fieldname]["options"]["css_field_class"] ."\" ";
 				}			
 					
-
-				if ($this->structure[$fieldname]["options"]["disabled"] == "yes")
-					print "disabled=\"disabled\" ";
+				if (isset($this->structure[$fieldname]["options"]["disabled"]))
+				{
+					if ($this->structure[$fieldname]["options"]["disabled"] == "yes")
+						print "disabled=\"disabled\" ";
+				}
 					
 				print "type=\"checkbox\" style=\"border: 0px\" name=\"". $fieldname ."\" id=\"". $fieldname ."\">";
 
@@ -1087,7 +1194,7 @@ class form_input
 						$translation = language_translate_string($this->language, $fieldname);
 					}
 	
-					print "<label for=\"$fieldname\">$translation</label><br>";
+					print "<label for=\"". $fieldname ."\">". $translation ."</label>";
 				}
 
 
@@ -1251,7 +1358,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 			break;
 
@@ -1260,8 +1367,11 @@ class form_input
 
 				print "<input name=\"$fieldname\" type=\"submit\" value=\"$translation\"";
 				
-				if ($this->structure[$fieldname]["options"]["disabled"] == "yes")
-					print "disabled=\"disabled\" ";
+				if (isset($this->structure[$fieldname]["options"]["disabled"]))
+				{
+					if ($this->structure[$fieldname]["options"]["disabled"] == "yes")
+						print "disabled=\"disabled\" ";
+				}
 					
 				print ">";
 			break;
@@ -1301,7 +1411,7 @@ class form_input
 				// optional label/description
 				if (isset($this->structure[$fieldname]["options"]["label"]))
 				{
-					print $this->structure[$fieldname]["options"]["label"];
+					print "<label for=\"". $fieldname ."\">". $this->structure[$fieldname]["options"]["label"] ."</label>";
 				}
 			break;
 
@@ -1439,7 +1549,7 @@ class form_input
 
 
 		// start form
-		print "<form enctype=\"multipart/form-data\" method=\"". $this->method ."\" action=\"". $this->action ."\" class=\"form_standard\">";
+		print "<form enctype=\"multipart/form-data\" method=\"". $this->method ."\" action=\"". $this->action ."\" class=\"form_standard\" name=\"" . $this->formname ."\">";
 
 		// draw session form box
 		if ($this->sessionform)
@@ -1480,7 +1590,7 @@ class form_input
 
 
 				// standard vs grouped subform
-				if ($this->subforms_grouped[$form_label])
+				if (isset($this->subforms_grouped[$form_label]))
 				{
 					log_write("debug", "inc_form", "Subform $form_logic is grouped - running additional logic");
 
@@ -1553,13 +1663,31 @@ class form_input
 							}
 
 							// grouped field
-							$num_fields = count ($this->subforms_grouped["domain_records"][$fieldname]);
+							$num_fields = count ($this->subforms_grouped[$form_label][$fieldname]);
+
+							// check for errors
+							$error = 0;
+
+							foreach ($this->subforms_grouped[$form_label][$fieldname] as $fieldname2)
+							{
+								if (isset($_SESSION["error"]["$fieldname2-error"]))
+								{
+									$error = 1;
+								}
+							}
 
 
 							// run through group members
-							print "<tr>";
+							if ($error)
+							{
+								print "<tr class=\"form_error\">";
+							}
+							else
+							{
+								print "<tr>";
+							}
 
-							foreach ($this->subforms_grouped["domain_records"][$fieldname] as $fieldname2)
+							foreach ($this->subforms_grouped[$form_label][$fieldname] as $fieldname2)
 							{
 								// render field
 								print "<td>";
@@ -1836,6 +1964,83 @@ function form_helper_prepare_valuesfromdb($sqlquery)
 
 	return 0;
 }
+
+
+
+
+
+/*
+	form_helper_prepare_valuesfromgroup($sqlquery)
+
+	Passes the provided query to the sql_get_grouped_structure query, then takes the provided information and generates
+	a form dropdown object, saving the developer from having to write lots of unnessacary information.
+
+	Refer to the documentation in amberphplib/inc_sql.php relating to the sql_get_grouped_structure for information on
+	the appropiate way to structure the SQL query.
+
+	Fields
+	fieldname		Field to query
+	sqlquery		SQL Query to execute
+				eg: "SELECT id as value_id, group_name as value_key, id_parent as value_parent FROM object_groups"
+
+	Returns the structure
+	array			Form object structure
+*/
+
+function form_helper_prepare_dropdownfromgroup($fieldname, $sqlquery)
+{
+	log_debug("form", "Executing form_helper_prepare_dropdownfromgroup($fieldname, $sqlquery)");
+	
+	// start object
+	$structure = array();
+
+
+	// fetch from cache (if it exists)
+	if (isset($GLOBALS["cache"]["form_sql"][$sqlquery]))
+	{
+		log_write("debug", "form", "Fetching form DB results from cache");
+
+		$data = $GLOBALS["cache"]["form_sql"][$sqlquery];
+	}
+	else
+	{
+		// execute query
+		$data = sql_get_grouped_structure($sqlquery);
+	}
+
+	// import data into form structure
+	if (is_array($data))
+	{
+		foreach ($data as $data_row)
+		{
+			$structure["values"][]				= $data_row["id"];
+			$structure["translations"][ $data_row["id"] ]	= $data_row["key_formatted"];
+		}
+	}
+	
+	// set type and any error messaes
+	if (!$structure)
+	{
+		// no valid data found
+		$structure["fieldname"] 	= $fieldname;
+		$structure["type"]		= "text";
+		$structure["defaultvalue"]	= "No ". language_translate_string($_SESSION["user"]["lang"], $fieldname) ." avaliable.";
+	}
+	else
+	{
+		// valid dropdown
+		$structure["fieldname"] 	= $fieldname;
+		$structure["type"]		= "dropdown";
+	}
+
+	
+	// return the structure
+	return $structure;
+
+} // end of form_helper_prepare_dropdownfromgroup()
+
+
+
 
 
 

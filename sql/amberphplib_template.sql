@@ -187,6 +187,7 @@ CREATE TABLE `menu` (
   `topic` varchar(50) NOT NULL,
   `link` varchar(50) NOT NULL,
   `permid` int(11) NOT NULL DEFAULT '0',
+  `config` varchar(255) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=170 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -368,4 +369,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2013-08-17 15:51:59
+-- Dump completed on 2013-08-17 16:32:16

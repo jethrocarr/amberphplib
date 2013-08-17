@@ -41,7 +41,7 @@ class user_auth
 		log_debug("user_auth", "Executing user_auth()");
 
 		// fetch authentication method from the database. If that fails, default to sql
-		$this->method = sql_get_singlevalue("SELECT value FROM `config` WHERE name='AUTH_METHOD' LIMIT 1");
+		$this->method = $GLOBALS["config"]["AUTH_METHOD"];
 
 		if (!$this->method)
 		{
@@ -78,17 +78,79 @@ class user_auth
 		}
 		else
 		{
+			// determine timeout
+			if (empty($GLOBALS["config"]["SESSION_TIMEOUT"]))
+			{
+				// default == two hours (in seconds)
+				$session_timeout = 7200;
+			}
+			else
+			{
+				// use configured setting
+				$session_timeout = $GLOBALS["config"]["SESSION_TIMEOUT"];
+			}
+
 			// get user session data
 			$sql_session_obj		= New sql_query;
-			$sql_session_obj->string 	= "SELECT id, time FROM `users_sessions` WHERE authkey='" . $_SESSION["user"]["authkey"] . "' AND ipaddress='" . $_SERVER["REMOTE_ADDR"] . "' LIMIT 1";
+			$sql_session_obj->string 	= "SELECT id, time, ipv4, ipv6 FROM `users_sessions` WHERE authkey='" . $_SESSION["user"]["authkey"] . "' LIMIT 1";
 			$sql_session_obj->execute();
 
 			if ($sql_session_obj->num_rows())
 			{
 				$sql_session_obj->fetch_array();
 
+				
+				// Verify the IP address
+				//
+				// This check is designed to reduce the risk of any theft of session information, by forcing the session
+				// to be linked to the user's IP  - stealing session data and connecting from another location will
+				// be denied.
+				//
+				// There is some trickiness to support IPv4/IPv6 mixed environments, as sometimes browers will swap between
+				// IPv4 and IPv6 addressing in a session, so we trust the first IPv4 and the first IPv6 addresses that the
+				// host identifies with, then deny all future ones.
+				//
+				if (ip_type_detect($_SERVER["REMOTE_ADDR"]) == 6)
+				{
+					if (!empty($sql_session_obj->data[0]["ipv6"]))
+					{
+						if ($_SERVER["REMOTE_ADDR"] != $sql_session_obj->data[0]["ipv6"])
+						{
+							// the current IPv6 address does not match the one for this session
+							// denied
+							return 0;
+						}
+					}
+					else
+					{
+						// this session hasn't connected via IPv6 before, add it to the session info.
+						$sql_obj		= New sql_query;
+						$sql_obj->string	= "UPDATE `users_sessions` SET ipv6='". $_SERVER["REMOTE_ADDR"] ."' WHERE authkey='". $_SESSION["user"]["authkey"] ."' LIMIT 1";
+						$sql_obj->execute();
+					}
+				}
+				else
+				{
+					if (!empty($sql_session_obj->data[0]["ipv4"]))
+					{
+						if ($_SERVER["REMOTE_ADDR"] != $sql_session_obj->data[0]["ipv4"])
+						{
+							// the current IPv4 address does not match the one for this session
+							// denied
+							return 0;
+						}
+					}
+					else
+					{
+						// this session hasn't connected via IPv4 before, add it to the session info.
+						$sql_obj		= New sql_query;
+						$sql_obj->string	= "UPDATE `users_sessions` SET ipv4='". $_SERVER["REMOTE_ADDR"] ."' WHERE authkey='". $_SESSION["user"]["authkey"] ."' LIMIT 1";
+						$sql_obj->execute();
+					}
+				}
+
 				$time = time();
-				if ($time < ($sql_session_obj->data[0]["time"] + 7200))
+				if ($time < ($sql_session_obj->data[0]["time"] + $session_timeout))
 				{
 					// we want to update the time value in the database, but we don't want to do this
 					// on every single page load - no need, and a waste of performance.
@@ -809,7 +871,16 @@ class user_auth
 
 		// create session entry for user login
 		$sql_obj		= New sql_query;
-		$sql_obj->string	= "INSERT INTO `users_sessions` (userid, authkey, ipaddress, time) VALUES ('$userid', '$authkey', '$ipaddress', '$time')";
+		
+		if (ip_type_detect($ipaddress) == 6)
+		{
+			$sql_obj->string	= "INSERT INTO `users_sessions` (userid, authkey, ipv6, time) VALUES ('$userid', '$authkey', '$ipaddress', '$time')";
+		}
+		else
+		{
+			$sql_obj->string	= "INSERT INTO `users_sessions` (userid, authkey, ipv4, time) VALUES ('$userid', '$authkey', '$ipaddress', '$time')";
+		}
+
 		$sql_obj->execute();
 
 
@@ -915,7 +986,7 @@ class user_auth
 		if ($GLOBALS["config"]["AUTH_PERMS_CACHE"] == "enabled")
 		{
 			// check for cache
-			if ($_SESSION["user"]["cache"]["perms"])
+			if (isset($_SESSION["user"]["cache"]["perms"]))
 			{
 				log_write("debug", "user_auth", "Loading user permissions from session cache");
 
@@ -975,12 +1046,15 @@ class user_auth
 					for ($i=0; $i < $obj_ldap->data["count"]; $i++)
 					{
 						// run through members and see if our user belongs
-						for ($j=0; $j < $obj_ldap->data[$i]["memberuid"]["count"]; $j++)
+						if (!empty($obj_ldap->data[$i]["memberuid"]["count"]))
 						{
-							if ($obj_ldap->data[$i]["memberuid"][$j] == $_SESSION["user"]["name"])
+							for ($j=0; $j < $obj_ldap->data[$i]["memberuid"]["count"]; $j++)
 							{
-								// user has an entry for that permission - save to cache
-								$GLOBALS["cache"]["user"]["perms"][ $obj_ldap->data[$i]["cn"][0] ] = 1;
+								if ($obj_ldap->data[$i]["memberuid"][$j] == $_SESSION["user"]["name"])
+								{
+									// user has an entry for that permission - save to cache
+									$GLOBALS["cache"]["user"]["perms"][ $obj_ldap->data[$i]["cn"][0] ] = 1;
+								}
 							}
 						}
 					} // end of loop through groups
@@ -1078,7 +1152,7 @@ class user_auth
 			}
 
 			// return permissions value
-			if ($GLOBALS["cache"]["user"]["perms"][$type])
+			if (!empty($GLOBALS["cache"]["user"]["perms"][$type]))
 			{
 				return 1;
 			}

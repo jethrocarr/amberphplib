@@ -210,6 +210,29 @@ function format_file_extension($filename)
 
 
 /*
+	format_file_noextension
+
+	Returns everything but the file extension
+
+	Values
+	filename	Filename or path
+
+	Returns
+	string		file name without extension
+*/
+function format_file_noextension($filename)
+{
+	log_debug("misc", "Executing format_file_noextension($filename)");
+
+	// note: we can't use strstr to search before needle, as it's PHP 5.3.0+ only :'(
+
+	$extension = strtolower(substr(strrchr($filename,"."),1));
+	return str_replace(".$extension", "", $filename);
+}
+
+
+
+/*
 	format_file_name
 
 	Returns the filename & extension of the supplied filepath - effectively strips
@@ -226,6 +249,47 @@ function format_file_name($filepath)
 	log_debug("misc", "Executing format_file_name($filepath)");
 
 	return substr(strrchr($filepath,"/"),1);
+}
+
+
+/*
+	format_file_contenttype
+
+	Returns the MIME content type of the supplied field extension.
+
+	Use with format_file_extension if you want to strip the extension information
+	from a filename.
+
+	Values
+	file_extension	Extension of filename (without the .)
+
+	Returns
+	string		Ctype
+*/
+
+function format_file_contenttype($file_extension)
+{
+	log_debug("misc". "Executing format_file_contenttype($file_extension)");
+
+	$ctype = NULL;
+
+	switch ($file_extension)
+	{
+		case "pdf": $ctype="application/pdf"; break;
+		case "exe": $ctype="application/octet-stream"; break;
+		case "zip": $ctype="application/zip"; break;
+		case "doc": $ctype="application/msword"; break;
+		case "xls": $ctype="application/vnd.ms-excel"; break;
+		case "ppt": $ctype="application/vnd.ms-powerpoint"; break;
+		case "gif": $ctype="image/gif"; break;
+		case "png": $ctype="image/png"; break;
+		case "jpeg":
+		case "jpg": $ctype="image/jpg"; break;
+		case "csv": $ctype="text/csv"; break;
+		default: $ctype="application/force-download";
+	}
+
+	return $ctype;
 }
 
 
@@ -409,9 +473,11 @@ function format_linkbox($type, $hyperlink, $text)
 	Formats the provided floating integer and adds the default currency and applies
 	rounding to it to make a number suitable for display.
 
-	Set nocurrency to 1 to disable addition of the currency symbol
+	Set nocurrency to 1 to disable addition of the currency symbol.
+
+	Set round to desired number of SF values, default is 2
 */
-function format_money($amount, $nocurrency = NULL)
+function format_money($amount, $nocurrency = NULL, $round = 2)
 {
 	log_debug("misc", "Executing format_money($amount)");
 	
@@ -420,7 +486,7 @@ function format_money($amount, $nocurrency = NULL)
 	$decimal	= $GLOBALS["config"]["CURRENCY_DEFAULT_DECIMAL_SEPARATOR"];
 
 	// formatting for readability
-	$amount 	= number_format($amount, "2", $decimal, $thousands);
+	$amount 	= number_format($amount, $round, $decimal, $thousands);
 
 
 	if ($nocurrency)
@@ -598,11 +664,12 @@ function time_format_hourmins($seconds)
 
 	Values
 	date		Format YYYY-MM-DD OR unix timestamp (optional)
+	time		(optional) TRUE/FALSE to inclue time
 
 	Returns
 	string		Date in human-readable format.
 */
-function time_format_humandate($date = NULL)
+function time_format_humandate($date = NULL, $time = FALSE)
 {
 	log_debug("misc", "Executing time_format_humandate($date)");
 
@@ -626,7 +693,7 @@ function time_format_humandate($date = NULL)
 	}
 
 
-	if ($_SESSION["user"]["dateformat"])
+	if (isset($_SESSION["user"]["dateformat"]))
 	{
 		// fetch from user preferences
 		$format = $_SESSION["user"]["dateformat"];
@@ -635,25 +702,40 @@ function time_format_humandate($date = NULL)
 	{
 		// user hasn't chosen a default time format yet - use the system
 		// default
-		$format = sql_get_singlevalue("SELECT value FROM config WHERE name='DATEFORMAT' LIMIT 1");
+		$format = $GLOBALS["config"]["DATEFORMAT"];
 	}
 
 
 	// convert to human readable format
+	$string = "";
+
 	switch ($format)
 	{
 		case "mm-dd-yyyy":
-			return date("m-d-Y", $timestamp);
+			$string = date("m-d-Y", $timestamp);
 		break;
 
 		case "dd-mm-yyyy":
-			return date("d-m-Y", $timestamp);
+			$string = date("d-m-Y", $timestamp);
+		break;
+
+		case "dd-Mmm-yyyy":
+			return date("d-M-Y", $timestamp);
 		break;
 		
 		case "yyyy-mm-dd":
 		default:
-			return date("Y-m-d", $timestamp);
+			$string = date("Y-m-d", $timestamp);
 		break;
+	}
+	
+	if ($time)
+	{
+		return $string ." ". date("H:i");
+	}
+	else
+	{
+		return $string;
 	}
 }
 
@@ -942,83 +1024,157 @@ function log_notification_render()
 /*
 	log_debug_render()
 
-	Displays the debugging log
+	Displays the debugging log - suitable for both CLI and web UI display - could do
+	with some level of more modular split.
 */
 function log_debug_render()
 {
 	log_debug("inc_misc", "Executing log_debug_render()");
 
 
-	print "<p><b>Debug Output:</b></p>";
-	print "<p><i>Please be aware that debugging will cause some impact on performance and should be turned off in production.</i></p>";
-	
-	
-	// table header
-	print "<table class=\"table_content\" width=\"100%\" cellspacing=\"0\">";
-	
-	print "<tr class=\"header\">";
-		print "<td nowrap><b>Time</b></td>";
-		print "<td nowrap><b>Memory</b></td>";
-		print "<td nowrap><b>Type</b></td>";
-		print "<td nowrap><b>Category</b></td>";
-		print "<td><b>Message/Content</b></td>";
-	print "</tr>";
-
-	// get first time entry
-	$time_first = (float)$_SESSION["user"]["log_debug"][0]["time_sec"] + (float)$_SESSION["user"]["log_debug"][0]["time_usec"];
-
-	// count SQL queries
-	$num_sql_queries = 0;
-
-	// content
-	foreach ($_SESSION["user"]["log_debug"] as $log_record)
+	if (!empty($_SESSION["mode"]))
 	{
-		// get last time entry
-		$time_last = (float)$log_record["time_sec"] + (float)$log_record["time_usec"];
-
-
-		// choose formatting
-		switch ($log_record["type"])
+		if ($_SESSION["mode"] == "cli")
 		{
-			case "error":
-				print "<tr bgcolor=\"#ff5a00\">";
-			break;
+			/*
+				CLI Interface
 
-			case "warning":
-				print "<tr bgcolor=\"#ffeb68\">";
-			break;
+				Limited to a statistical display only.
+			*/
 
-			case "sql":
-				print "<tr bgcolor=\"#7bbfff\">";
-				$num_sql_queries++;
-			break;
+			// get first time entry
+			$time_first = (float)$_SESSION["user"]["log_debug"][0]["time_sec"] + (float)$_SESSION["user"]["log_debug"][0]["time_usec"];
 
-			default:
-				print "<tr>";
-			break;
-		}
+			// count SQL queries
+			$num_sql_queries	= 0;
+			$num_cache_hits		= 0;
 		
-		// display
-		print "<td nowrap>". $time_last  ."</td>";
-		print "<td nowrap>". format_size_human($log_record["memory"]) ."</td>";
-		print "<td nowrap>". $log_record["type"] ."</td>";
-		print "<td nowrap>". $log_record["category"] ."</td>";
-		print "<td>". $log_record["content"] ."</td>";
+			// run through the log to get stats
+			foreach ($_SESSION["user"]["log_debug"] as $log_record)
+			{
+				// get last time entry
+				$time_last = (float)$log_record["time_sec"] + (float)$log_record["time_usec"];
+
+				// last memmor
+				$memory_last = $log_record["memory"];
+
+				// choose formatting
+				switch ($log_record["type"])
+				{
+					case "sql":
+						$num_sql_queries++;
+					break;
+
+					case "cache":
+						$num_cache_hits++;
+					break;
+
+					default:
+						// nothing todo
+					break;
+				}
+			}
+			
+			// report completion time
+			$time_diff = ($time_last - $time_first);
+
+			// display
+			log_write("debug", "stats", "----");
+			log_write("debug", "stats", "Application execution time:\t". $time_diff  ." seconds");
+			log_write("debug", "stats", "Total Memory Consumption:\t". number_format($memory_last) ." bytes.");
+			log_write("debug", "stats", "SQL Queries Executed:\t". number_format($num_sql_queries) ." queries.");
+			log_write("debug", "stats", "Total Cache Hits:\t\t". number_format($num_cache_hits) ." cache lookups.");
+			log_write("debug", "stats", "----");
+
+		} // end if CLI
+
+	} // end if CLI
+	else
+	{
+		/*
+			Web Interface
+		*/
+
+
+		print "<p><b>Debug Output:</b></p>";
+		print "<p><i>Please be aware that debugging will cause some impact on performance and should be turned off in production.</i></p>";
+		
+		
+		// table header
+		print "<table class=\"table_content\" width=\"100%\" cellspacing=\"0\">";
+		
+		print "<tr class=\"header\">";
+			print "<td nowrap><b>Time</b></td>";
+			print "<td nowrap><b>Memory</b></td>";
+			print "<td nowrap><b>Type</b></td>";
+			print "<td nowrap><b>Category</b></td>";
+			print "<td><b>Message/Content</b></td>";
 		print "</tr>";
 
+		// get first time entry
+		$time_first = (float)$_SESSION["user"]["log_debug"][0]["time_sec"] + (float)$_SESSION["user"]["log_debug"][0]["time_usec"];
 
-	}
+		// count SQL queries
+		$num_sql_queries	= 0;
+		$num_cache_hits		= 0;
 
-	print "</table>";
+		// content
+		foreach ($_SESSION["user"]["log_debug"] as $log_record)
+		{
+			// get last time entry
+			$time_last = (float)$log_record["time_sec"] + (float)$log_record["time_usec"];
 
 
-	// report completion time
-	$time_diff = ($time_last - $time_first);
+			// choose formatting
+			switch ($log_record["type"])
+			{
+				case "error":
+					print "<tr bgcolor=\"#ff5a00\">";
+				break;
 
-	print "<p>Completed in $time_diff seconds.</p>";
+				case "warning":
+					print "<tr bgcolor=\"#ffeb68\">";
+				break;
 
-	// report number of SQL queries
-	print "<p>Executed $num_sql_queries of SQL queries</p>";
+				case "sql":
+					print "<tr bgcolor=\"#7bbfff\">";
+					$num_sql_queries++;
+				break;
+
+				case "cache":
+					print "<tr bgcolor=\"#ddf9ff\">";
+					$num_cache_hits++;
+				break;
+
+				default:
+					print "<tr>";
+				break;
+			}
+			
+			// display
+			print "<td nowrap>". $time_last  ."</td>";
+			print "<td nowrap>". format_size_human($log_record["memory"]) ."</td>";
+			print "<td nowrap>". $log_record["type"] ."</td>";
+			print "<td nowrap>". $log_record["category"] ."</td>";
+			print "<td>". $log_record["content"] ."</td>";
+			print "</tr>";
+
+
+		}
+
+		print "</table>";
+
+
+		// report completion time
+		$time_diff = ($time_last - $time_first);
+
+		print "<p>Completed in $time_diff seconds.</p>";
+
+		// report number of SQL queries
+		print "<p>Executed $num_sql_queries of SQL queries.</p>";
+		print "<p>Executed $num_cache_hits cache lookups.</p>";
+
+	} // end if web UI
 }
 
 
@@ -1282,6 +1438,26 @@ function dir_list_contents($directory='.')
 */
 
 
+
+/*
+	ip_type_detect
+
+	Returns the type of IP address for the specified value (v4 or v6). This function assumes a
+	single address is being provided only (no ranges/subnets).
+
+	Returns
+	0		Failure/Error
+	4		IPv4
+	6		IPv6
+*/
+function ip_type_detect($address)
+{
+	log_debug("inc_misc", "Executing ip_type_detect($address)");
+     
+     	return strpos($address, ":") === false ? 4 : 6;
+}
+
+
 /*
 	ipv4_subnet_members
 
@@ -1347,6 +1523,74 @@ function ipv4_subnet_members($address_with_cidr, $include_network = FALSE)
 } // end of ipv4_subnet_members
 
 
+/*
+	ipv4_split_to_class_c
+
+	Takes the provided network & CIDR notation (less than /24) and divides it
+	into multiple /24s, returning those in CIDR notation in an array.
+
+	Fields
+	address_with_cidr
+
+	Returns
+	0	Failure
+	array	Array of /24 CIDR notation networks without notation
+*/
+
+function ipv4_split_to_class_c($address_with_cidr)
+{
+	log_write("debug", "inc_misc", "Executing ipv4_split_to_class_c($address_with_cidr)");
+
+	// source range
+	$matches	= split("/", $address_with_cidr);
+
+	$src_addr	= $matches[0];
+	$src_cidr	= $matches[1];
+
+
+	// calculate subnet mask
+	$bin = NULL;
+
+	for ($i = 1; $i <= 32; $i++)
+	{
+		$bin .= $src_cidr >= $i ? '1' : '0';
+	}
+
+	// calculate key values
+	$long_netmask	= bindec($bin);					// eg: 255.255.255.0
+	$long_network	= ip2long($src_addr);				// eg: 192.168.0.0
+	$long_broadcast	= ($long_network | ~($long_netmask));		// eg: 192.168.0.255
+	$long_classc	= ip2long("0.0.1.0");				// used for addition calculations
+
+	$long_broadcast	= ip2long(long2ip($long_broadcast));		// fixes ugly PHP math issues -without this
+									// the broadcast long is totally incorrect.
+
+
+	/*
+		Debugging
+
+	print "addr: $address_with_cidr <br>";
+	print "netmask: $long_netmask ". long2ip($long_netmask) ."<br>";
+	print "network: $long_network ". long2ip($long_network) ."<br>";
+	print "broadcast: $long_broadcast ". long2ip($long_broadcast) ."<br>";
+	print "classc: $long_classc ". long2ip($long_classc) ."<br>";
+
+	*/
+
+
+	// get network addresses for /24s
+	$curr	= $long_network;
+	$return	= array();
+
+	while ($curr < $long_broadcast)
+	{
+		$return[]	= long2ip($curr);
+		$curr		= $curr + $long_classc;
+	}
+
+	return $return;
+
+} // end of ipv4_split_to_class_c
 
 
 /*
@@ -1356,7 +1600,7 @@ function ipv4_subnet_members($address_with_cidr, $include_network = FALSE)
 	used for reverse DNS.
 
 	Fields
-	ipaddress
+	ipaddress (IPv4)
 
 	Returns
 	0		Invalid IP address
@@ -1374,6 +1618,128 @@ function ipv4_convert_arpa( $ipaddress )
 	return $result;
 
 } // end of ipv4_convert_arpa
+
+
+/*
+	ipv6_convert_arpa
+
+	Converts the provided IPv6 address into the arpa format typically
+	used for reverse DNS. Supports both CIDR and non-CIDR format addresses
+
+	Fields
+	ipaddress (IPv6)
+
+	Returns
+	0	Invalid IP Address / Other Error
+	string	arpa format eg 1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
+*/
+
+function ipv6_convert_arpa( $ipaddress )
+{
+	log_write("debug", "inc_misc", "Executing ipv6_convert_arpa( $ipaddress)");
+
+	if (preg_match("/^([0-9a-f:]*)\/([0-9]*)$/i", $ipaddress, $matches))
+	{
+		$cidr		= $matches[2];
+		$addr		= inet_pton($matches[1]);
+		$unpack		= unpack('H*hex', $addr);
+		$hex		= $unpack['hex'];
+		$hex_array	= str_split($hex);
+		
+		for ($i=0; $i < ($cidr / 4); $i++)
+		{
+			$hex_array2[$i] = $hex_array[$i];
+		}
+
+		$result		= implode('.', array_reverse($hex_array2)) . '.ip6.arpa';
+	}
+	else
+	{
+		$addr	= inet_pton($ipaddress);
+		$unpack	= unpack('H*hex', $addr);
+		$hex	= $unpack['hex'];
+		$result	= implode('.', array_reverse(str_split($hex))) . '.ip6.arpa';
+	}
+
+	return $result;
+
+} // end of ipv6_convert_arpa
+
+
+/*
+	ipv6_convert_fromarpa
+
+	Takes the provided apra/PTR format IPv6 address and turns it into
+	a regular IPv6 address.
+
+	Fields
+	ipaddress_arpa (IPv6 arpa record, eg 1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.)
+
+	Returns
+	0	Invalid IP Address / Other Error
+	string	IPv6 address, eg 2001:db8::1 or 2001:db8::/32
+*/
+
+
+function ipv6_convert_fromarpa ($arpa)
+{
+	// credit to http://stackoverflow.com/questions/6619682/convert-ipv6-to-nibble-format-for-ptr-records
+	log_write("debug", "inc_misc", "Executing ipv6_convert_fromarpa($arpa)");
+
+	$mainptr	= substr($arpa, 0, strlen($arpa)-9);
+	$pieces		= array_reverse(explode(".",$mainptr));  
+	$pieces2	= $pieces;
+
+	if (count($pieces) < 32)
+	{
+		// network? append the zeros to make the conversion work
+		$missing = 32 - count($pieces);
+
+		for ($i=0; $i < $missing; $i++)
+		{
+			$pieces2[] = '0';
+		}
+	}
+
+        $hex		= implode("",$pieces2);
+	$ipbin		= pack('H*', $hex);
+	$ipv6addr	= inet_ntop($ipbin);
+
+	// Is it a network address and requires a subnet mask? If so, we can tell by
+	// the length of the record and calculate the range from that
+	//
+	// TODO / Warning: This logic always assumes you have an arpa address that is dividable
+	// by 4 (eg /48, /52, /56, etc). It's possible to have weirder subnets (eg /49) but
+	// there's little/no good way to detect if this is the case without already knowing
+	// the subnet mask.
+	//
+	// Of course if I'm wrong and you can fix this, please send me a patch and I'll add
+	// a comment proclaiming your coding glory. :-)
+	//
+	// We only really use this function for making it easier to import IPv6 domains
+	// from zonefiles anyway....
+	//
+	if (count($pieces) < 32)
+	{
+		$ipv6cidr = count($pieces) * 4;
+		$ipv6addr = $ipv6addr .'/'. $ipv6cidr;
+	}
+
+	return $ipv6addr;
+}
+
+
+/*
+	SORTING FUNCTIONS
+
+	These functions exist to help with special sorting circumstances
+*/
+
+function sort_natural_ipaddress($a, $b)
+{
+	return strnatcmp($a["ipaddress"], $b["ipaddress"]);
+}
+
 
 
 
