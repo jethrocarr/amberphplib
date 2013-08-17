@@ -1758,6 +1758,10 @@ class table
 							// There are two ways:
 							// 1. (default) Link to index.php
 							// 2. Set the ["options]["full_link"] value to yes to force a full link
+							if (empty($this->links[$link]["options"]["class"]))
+							{
+								$this->links[$link]["options"]["class"] = "";
+							}
 
 							if (isset($this->links[$link]["options"]["full_link"]) && $this->links[$link]["options"]["full_link"] == "yes")
 							{
@@ -1780,7 +1784,7 @@ class table
 								{
 									print "&$getfield=". $this->links[$link]["options"][$getfield]["value"];
 								}
-								else
+								elseif (isset($this->links[$link]["options"][$getfield]["column"]))
 								{
 									print "&$getfield=". $this->data[$i][ $this->links[$link]["options"][$getfield]["column"] ];
 								}
